@@ -179,6 +179,9 @@ class ConvolutionalLayer(Layer):
         # Kernel aka weights aka parameters
         self.weights = None
         self.bias = None
+        self.num_samples_used = 0
+        self.grad_weights = None
+        self.grad_bias = None
 
     # Input shape is (batch_size x rows x cols x channels aka depth)?
     # https://miro.medium.com/v2/resize:fit:720/format:webp/0*-zjHFGVymDMb9XAZ.png
@@ -197,16 +200,20 @@ class ConvolutionalLayer(Layer):
         #https://datascience.stackexchange.com/a/73936
         self.bias = np.zeros(self.num_kernels)
 
+        # Store gradients for update
+        self.grad_weights = np.zeros(self.weights.shape)
+        self.grad_bias = np.zeros(self.bias.shape)
+
 
     # channels == input feature maps
     # input should be of shape (batch_size, width, height, channels)
     # output should be shape (batch_size, width', height', num_filters)
     # TODO: Correct output shape, but not sure combining channels properly per filter
-    def forward_prop(self, input):
-        batch_size = input.shape[0]
+    def forward_prop(self, inputs):
+        batch_size = inputs.shape[0]
         kernels = self.num_kernels  # also output channels/feature maps
-        width = input.shape[2]
-        height = input.shape[3]
+        width = inputs.shape[2]
+        height = inputs.shape[3]
         # Assuming stride of 1 in both directions
         convolution = np.zeros(
             (batch_size,
@@ -214,6 +221,9 @@ class ConvolutionalLayer(Layer):
              width - self.kernel_size + 1,
              height - self.kernel_size + 1)
         )
+
+        self.inputs = inputs
+        self.num_samples_used += batch_size
 
         #print(f'Input dims: {input.shape}')
         #print(f'Kernels dims: {self.kernels.shape}')
@@ -228,7 +238,7 @@ class ConvolutionalLayer(Layer):
                     print(w)
                     print(h)
                     print("------------")'''
-                    input_section = input[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
+                    input_section = inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
                     '''print(f'Input section: \n{input_section}')
                     print(f'Kernels: \n{self.weights}')
                     print(f'Kernels shape: {self.weights.shape}')
@@ -254,17 +264,51 @@ class ConvolutionalLayer(Layer):
     def backprop(self, dE_dY):
         print(dE_dY.shape)
         print("backprop")
+        batch_size = self.inputs.shape[0]
+        kernels = self.num_kernels  # also output channels/feature maps
+        channels = self.inputs.shape[1]
+        width = self.inputs.shape[2]
+        height = self.inputs.shape[3]
 
-        dE_dk = np.zeros(self.kernels.shape)
+        #dE_dW = np.zeros(self.weights.shape)
+        dE_dW = np.zeros((batch_size, *self.weights.shape))
+        #print(dE_dW.shape)
+
+        for batch in range(batch_size):
+            for h in range(height - self.kernel_size + 1):
+                for w in range(width - self.kernel_size + 1):
+                    input_section = self.inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
+                    for k in range(self.num_kernels):
+                        dE_dW[batch][k] += input_section * dE_dY[batch][k]
+
+        # Sum and store weight gradient for each sample in batch
+        # During update divide by batch size for avg deriv
+        self.grad_weights += np.sum(dE_dW, axis=0)
+        #self.grad_bias += np.sum(dE_dB, axis=0)
+
+        '''dE_dk = np.zeros(self.kernels.shape)
         for patch, h, w in self.patches_generator(self.image):
             for f in range(self.kernel_num):
                 dE_dk[f] += patch * dE_dY[h, w, f]
         # Update the parameters
         self.kernels -= alpha * dE_dk
-        return dE_dk
+        return dE_dk'''
+
+        return dE_dW
 
     def update(self, lr):
-        return
+        # Average summed weight gradients by dividing by number of samples in batch
+        self.grad_weights /= self.num_samples_used
+        #self.grad_bias /= self.num_samples_used
+
+        # Update via gradient descent
+        self.weights  = self.weights - (lr * self.grad_weights)
+        #self.bias = self.bias - (lr * self.grad_bias)
+
+        # Reset gradient sums, batch size count for next batch
+        self.grad_weights = np.zeros(self.weights.shape)
+        self.grad_bias = np.zeros(self.bias.shape)
+        self.num_samples_used = 0
 
 '''
 # Extract image height and width
