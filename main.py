@@ -92,6 +92,10 @@ def test_CNN():
     # Y is of shape (samples,) with values [0-9]
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
+    # Reshape X to add depth channels(1 in this case)
+    x_train = np.expand_dims(x_train, axis=1)
+    x_test = np.expand_dims(x_test, axis=1)
+
     # Convert true 0-9 values to a binary categorical format
     # Ex. [ 0-9 ] to [[0 or 1] of length 10]
     y_train = np_utils.to_categorical(y_train)
@@ -119,9 +123,9 @@ def test_CNN():
 
 
 def test_CNN2():
-    layer = ConvolutionalLayer(num_kernels=1, kernel_size=2, strides=1)
+    layer = ConvolutionalLayer(num_kernels=5, kernel_size=2, strides=1)
     img = np.array([np.reshape(range(1,10),(3,3)),np.reshape(range(9),(3,3))])
-    img = np.moveaxis(img, 0, -1)
+    #img = np.moveaxis(img, 0, -1)
     print(f'Image shape: {img.shape}')
     print(f'Image : \n{img}')
     #print(img[:,:,0])
@@ -129,7 +133,10 @@ def test_CNN2():
 
     layer.build(input_shape=img.shape)
     #print(layer.kernels)
-    layer.kernels = np.ones(layer.kernels.shape)
+    #layer.weights = np.ones(layer.weights.shape)
+    for k in range(len(layer.weights)):
+        layer.weights[k] = np.full(layer.weights[k].shape, k-2)
+
     print(f'Input shape: {layer.input_shape}')
     print(f'Output shape: {layer.output_shape}')
     img_batched = np.array([img])
@@ -139,9 +146,31 @@ def test_CNN2():
     print(f'Output: \n{output}')
     print(f'Output shape: {output.shape}')
 
+    act_layer = ActivationLayer(sigmoid, sigmoid_d)
+    act_layer.build(layer.output_shape)
+    output2 = act_layer.forward_prop(output)
+    print(f'Activation Output: \n{output2}')
+    print(f'Activation Output shape: {output2.shape}')
+
+    flatten = FlattenLayer()
+    flatten.build(output2.shape)
+    flattened = flatten.forward_prop(output2)
+    print(f'Flatten Output: \n{flattened}')
+    print(f'Flatten Output shape: {flattened.shape}')
+
+
+    '''act = sigmoid(output)
+    dact = sigmoid_d(output)
+
+    print(act)
+    print(act.shape)
+
+    print(dact)
+    print(dact.shape)'''
+
 
 
 #simple_test()
 #test()
-#test_CNN()
-test_CNN2()
+test_CNN()
+#test_CNN2()

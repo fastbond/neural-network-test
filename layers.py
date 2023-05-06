@@ -169,7 +169,7 @@ class ActivationLayer(Layer):
 # https://cs231n.github.io/convolutional-networks/#conv
 # https://arxiv.org/pdf/1603.07285v1.pdf
 class ConvolutionalLayer(Layer):
-    def __init__(self, num_kernels, kernel_size, strides, padding=None, channels_first=False):
+    def __init__(self, num_kernels, kernel_size, strides, padding=None, channels_first=True):
         super().__init__()
         self.num_kernels = num_kernels
         self.kernel_size = kernel_size
@@ -177,27 +177,26 @@ class ConvolutionalLayer(Layer):
         self.padding = padding
         self.channels_first = channels_first
         # Kernel aka weights aka parameters
-        self.kernels = None
+        self.weights = None
         self.bias = None
-        self.init_kernel()
 
     # Input shape is (batch_size x rows x cols x channels aka depth)?
     # https://miro.medium.com/v2/resize:fit:720/format:webp/0*-zjHFGVymDMb9XAZ.png
     def build(self, input_shape=None, output_shape=None):
         self.input_shape = input_shape or self.input_shape
-        output_width = self.input_shape[0] - self.kernel_size + 1
-        output_height = self.input_shape[1] - self.kernel_size + 1
-        self.output_shape = (output_width, output_height, self.num_kernels)
-        self.init_kernel()
+        output_width = self.input_shape[1] - self.kernel_size + 1
+        output_height = self.input_shape[2] - self.kernel_size + 1
+        self.output_shape = (self.num_kernels, output_width, output_height)
 
-    # channels???
-    # https://stanford.edu/~shervine/teaching/cs-230/cheatsheet-convolutional-neural-networks
-    def init_kernel(self):
-        # self.kernels = np.random.uniform(-0.5, 0.5, [num_kernels].extend(kernel_dims))
-        self.kernels = np.random.uniform(-0.5, 0.5, (self.num_kernels, self.kernel_size, self.kernel_size))
-        # Every filter has one bias?
+        # https://stanford.edu/~shervine/teaching/cs-230/cheatsheet-convolutional-neural-networks
+        input_channels = self.input_shape[0]
+        #self.weights = np.random.uniform(-0.5, 0.5, (self.num_kernels, self.kernel_size, self.kernel_size))
+        self.weights = np.random.uniform(-0.5, 0.5, (self.num_kernels, input_channels, self.kernel_size, self.kernel_size))
+
+        # Every filter has one bias? Or it it one per filter per channel?
         #https://datascience.stackexchange.com/a/73936
         self.bias = np.zeros(self.num_kernels)
+
 
     # channels == input feature maps
     # input should be of shape (batch_size, width, height, channels)
@@ -205,16 +204,15 @@ class ConvolutionalLayer(Layer):
     # TODO: Correct output shape, but not sure combining channels properly per filter
     def forward_prop(self, input):
         batch_size = input.shape[0]
-        width = input.shape[1]
-        height = input.shape[2]
-        #channels = input.shape[3]
-        kernels = self.num_kernels
+        kernels = self.num_kernels  # also output channels/feature maps
+        width = input.shape[2]
+        height = input.shape[3]
         # Assuming stride of 1 in both directions
         convolution = np.zeros(
             (batch_size,
+             kernels,
              width - self.kernel_size + 1,
-             height - self.kernel_size + 1,
-             kernels)
+             height - self.kernel_size + 1)
         )
 
         #print(f'Input dims: {input.shape}')
@@ -222,26 +220,31 @@ class ConvolutionalLayer(Layer):
         # w and h will be indices in output matrix/feature map
         # TODO: Process all batches at once
         #  also condense calls
+        #  also its just wrong
         for batch in range(batch_size):
-            for w in range(width - self.kernel_size + 1):
-                for h in range(height - self.kernel_size + 1):
-                    input_section = input[batch, w: w+self.kernel_size, h: h+self.kernel_size]
-                    print(f'Input section: \n{input_section}')
-                    print(f'Kernels: \n{self.kernels}')
-                    print(f'Kernels shape: {self.kernels.shape}')
-                    print(f'Input section shape: {input_section.shape}')
-                    products = np.matmul(input_section, self.kernels)
-                    print(f'Products: \n{products}')
-                    print(f'Products shape: \n{products.shape}')
-                    sums = np.sum(products, axis=(1, 2))
-                    print(f'Sums: \n{sums}')
-                    print(f'Sums shape: \n{sums.shape}')
-                    convolution[batch, w, h] = sums
-                    #print(f'Section dims: {input_section.shape}')
-                    #print(f'Product dims: {products.shape}')
-                    #print(f'Sum dims: {sums.shape}')
-                    #print(f'Sums: {sums}')
-        convolution += self.bias
+            for h in range(height - self.kernel_size + 1):
+                for w in range(width - self.kernel_size + 1):
+                    '''print("--POSITION--")
+                    print(w)
+                    print(h)
+                    print("------------")'''
+                    input_section = input[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
+                    '''print(f'Input section: \n{input_section}')
+                    print(f'Kernels: \n{self.weights}')
+                    print(f'Kernels shape: {self.weights.shape}')
+                    print(f'Input section shape: {input_section.shape}')'''
+                    for k in range(len(self.weights)):
+                        # products = np.matmul(input_section, self.kernels)
+                        # For each k, (c, x, y) * (c, x, y)
+                        products = input_section * self.weights[k]  # * for element-wise multiplication
+                        sums = np.sum(products)  # , axis=(1, 2))
+                        '''print(f'Products: \n{products}')
+                        print(f'Products shape: \n{products.shape}')
+                        print(f'Sums: \n{sums}')
+                        print(f'Sums shape: \n{sums.shape}')'''
+                        convolution[batch, k, w, h] = sums
+
+        #convolution += self.bias
         #print(convolution.shape)
 
         return convolution
@@ -283,13 +286,12 @@ class FlattenLayer(Layer):
     def build(self, input_shape=None, output_shape=None):
         self.input_shape = input_shape
         print(f'Flatten input shape: {self.input_shape}')
-        self.output_shape = (input_shape[0], np.prod(self.input_shape[1:]))
+        #self.output_shape = (input_shape[0], 1, np.prod(self.input_shape[1:]))
+        self.output_shape = (1, np.prod(self.input_shape[:]))
         print(f'Flatten output shape: {self.output_shape}')
 
     def forward_prop(self, inputs):
-        print(inputs.shape)
         outputs = np.reshape(inputs, self.output_shape)
-        print(outputs.shape)
         return outputs
 
     def backprop(self, dE_dY):
