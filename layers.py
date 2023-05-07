@@ -231,28 +231,20 @@ class ConvolutionalLayer(Layer):
         # TODO: Process all batches at once
         #  also condense calls
         #  also its just wrong
+
+        #print(convolution.shape)
+        # "A view is returned whenever possible" - I'm just assuming it always will return a view in this case
+        #  I can't figure out when transpose won't return a view
+        convolutionT = np.transpose(convolution, axes=(0,-2,-1,1))
+
         for batch in range(batch_size):
             for h in range(height - self.kernel_size + 1):
                 for w in range(width - self.kernel_size + 1):
-                    '''print("--POSITION--")
-                    print(w)
-                    print(h)
-                    print("------------")'''
                     input_section = inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
-                    '''print(f'Input section: \n{input_section}')
-                    print(f'Kernels: \n{self.weights}')
-                    print(f'Kernels shape: {self.weights.shape}')
-                    print(f'Input section shape: {input_section.shape}')'''
-                    for k in range(len(self.weights)):
-                        # products = np.matmul(input_section, self.kernels)
-                        # For each k, (c, x, y) * (c, x, y)
-                        products = input_section * self.weights[k]  # * for element-wise multiplication
-                        sums = np.sum(products)  # , axis=(1, 2))
-                        '''print(f'Products: \n{products}')
-                        print(f'Products shape: \n{products.shape}')
-                        print(f'Sums: \n{sums}')
-                        print(f'Sums shape: \n{sums.shape}')'''
-                        convolution[batch, k, w, h] = sums
+                    # (c, x, y) * (k, c, x, y)
+                    products = input_section * self.weights  # * for element-wise multiplication
+                    sums = np.sum(products, axis=(1, 2, 3))
+                    convolutionT[batch, w, h] = sums
 
         #print(f'Before: {convolution.shape}')
         #print(self.bias.shape)
