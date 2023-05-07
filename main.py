@@ -4,6 +4,8 @@ from layers import *
 from activations import *
 from lossfuncs import *
 
+import time
+
 #import tensorflow as tf
 #print(tf.__version__)
 #print(tf.config.list_physical_devices('GPU'))
@@ -112,7 +114,9 @@ def test_CNN():
     model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
     model.set_loss_function(mse, mse_d)
 
+    t = time.time()
     model.train(x_train[:n_train], y_train[:n_train], 0.3, 2, batch_size=1)
+    print(f'Train duration: {time.time() - t}')
 
     np.set_printoptions(precision=2)
     n_y = 10
@@ -120,9 +124,11 @@ def test_CNN():
     for i in range(n_y):
         print("Predict={:d}  True={:d}".format(np.argmax(predicts[i]), np.argmax(y_test[i])))
 
+    t = time.time()
     predicts = model.predict(x_test)
     accuracy = sum((np.argmax(predicts[i]) == np.argmax(y_test[i]) for i in range(len(predicts)))) / len(predicts)
     print(f'Accuracy: {accuracy}')
+    print(f'Predict duration: {time.time() - t}')
 
 
 
