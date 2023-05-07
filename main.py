@@ -112,7 +112,7 @@ def test_CNN():
     model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
     model.set_loss_function(mse, mse_d)
 
-    model.train(x_train[:n_train], y_train[:n_train], 0.1, 50, batch_size=1)
+    model.train(x_train[:n_train], y_train[:n_train], 0.1*32, 50, batch_size=32)
 
     np.set_printoptions(precision=2)
     n_y = 10

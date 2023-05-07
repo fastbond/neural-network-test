@@ -262,8 +262,8 @@ class ConvolutionalLayer(Layer):
     # Error aka dE_dY
     # (batch_size, width', height', num_filters)
     def backprop(self, dE_dY):
-        print(dE_dY.shape)
-        print("backprop")
+        #print(dE_dY.shape)
+        #print("backprop")
         batch_size = self.inputs.shape[0]
         kernels = self.num_kernels  # also output channels/feature maps
         channels = self.inputs.shape[1]
@@ -274,12 +274,19 @@ class ConvolutionalLayer(Layer):
         dE_dW = np.zeros((batch_size, *self.weights.shape))
         #print(dE_dW.shape)
 
+        # Think of it as weights pointing from filter to inputs
+        # Filter moves = pointing to new inputs
+        # SUM the error for the current output error value in dE/dY matrix for all input sections contributing to it
+        #   nevermind this makes no sense, sum for channels...?
         for batch in range(batch_size):
             for h in range(height - self.kernel_size + 1):
                 for w in range(width - self.kernel_size + 1):
                     input_section = self.inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
+                    # Each index (x,y) in dE_dY contains error for the section that produced the value at that index
                     for k in range(self.num_kernels):
-                        dE_dW[batch][k] += input_section * dE_dY[batch][k]
+                        #print(input_section.shape)
+                        #print(dE_dY[batch][k][w][h].shape)
+                        dE_dW[batch][k] += dE_dY[batch][k][w][h] * input_section
 
         # Sum and store weight gradient for each sample in batch
         # During update divide by batch size for avg deriv
@@ -335,11 +342,13 @@ class FlattenLayer(Layer):
         print(f'Flatten output shape: {self.output_shape}')
 
     def forward_prop(self, inputs):
-        outputs = np.reshape(inputs, self.output_shape)
+        # (batch, output_shape)
+        outputs = np.reshape(inputs, (inputs.shape[0], *self.output_shape))
         return outputs
 
     def backprop(self, dE_dY):
-        dE_dY = np.reshape(dE_dY, self.input_shape)
+        # (batch, input_shape)
+        dE_dY = np.reshape(dE_dY, (dE_dY.shape[0], *self.input_shape))
         return dE_dY
 
     def update(self, lr):

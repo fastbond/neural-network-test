@@ -62,6 +62,7 @@ class NeuralNetwork():
             print("Epoch {:d}: {:f}".format(epoch, error))
 
     def predict(self, X):
+        print(X.shape)
         output = X
         for layer in self.layers:
             output = layer.forward_prop(output)
