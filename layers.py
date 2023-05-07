@@ -225,18 +225,12 @@ class ConvolutionalLayer(Layer):
         self.inputs = inputs
         self.num_samples_used += batch_size
 
-        #print(f'Input dims: {input.shape}')
-        #print(f'Kernels dims: {self.kernels.shape}')
-        # w and h will be indices in output matrix/feature map
         # TODO: Process all batches at once
-        #  also condense calls
-        #  also its just wrong
-
-        #print(convolution.shape)
+        # w and h will be indices in output matrix/feature map
+        # Using transpose to get a view with different ordering to process all filters and channels at once
         # "A view is returned whenever possible" - I'm just assuming it always will return a view in this case
         #  I can't figure out when transpose won't return a view
         convolutionT = np.transpose(convolution, axes=(0,-2,-1,1))
-
         for batch in range(batch_size):
             for h in range(height - self.kernel_size + 1):
                 for w in range(width - self.kernel_size + 1):
@@ -246,12 +240,13 @@ class ConvolutionalLayer(Layer):
                     sums = np.sum(products, axis=(1, 2, 3))
                     convolutionT[batch, w, h] = sums
 
-        #print(f'Before: {convolution.shape}')
-        #print(self.bias.shape)
-        # TODO: Get rid of for loop
+        # TODO: Get rid of for loops
+        # Using transpose to get a view to add all filter biases in a single operation using broadcasting
         for batch in range(batch_size):
-            for k in range(self.num_kernels):
-                convolution[batch][k] += self.bias[k]
+            #for k in range(self.num_kernels):
+            #    convolution[batch][k] += self.bias[k]
+            cT = convolution[batch].T
+            cT += self.bias
         #print(f'After: {convolution.shape}')
 
         return convolution
