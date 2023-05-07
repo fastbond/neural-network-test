@@ -112,13 +112,17 @@ def test_CNN():
     model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
     model.set_loss_function(mse, mse_d)
 
-    model.train(x_train[:n_train], y_train[:n_train], 0.1*32, 50, batch_size=32)
+    model.train(x_train[:n_train], y_train[:n_train], 0.3, 2, batch_size=1)
 
     np.set_printoptions(precision=2)
     n_y = 10
     predicts = model.predict(x_test[:n_y])
     for i in range(n_y):
         print("Predict={:d}  True={:d}".format(np.argmax(predicts[i]), np.argmax(y_test[i])))
+
+    predicts = model.predict(x_test)
+    accuracy = sum((np.argmax(predicts[i]) == np.argmax(y_test[i]) for i in range(len(predicts)))) / len(predicts)
+    print(f'Accuracy: {accuracy}')
 
 
 

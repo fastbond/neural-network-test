@@ -254,8 +254,13 @@ class ConvolutionalLayer(Layer):
                         print(f'Sums shape: \n{sums.shape}')'''
                         convolution[batch, k, w, h] = sums
 
-        #convolution += self.bias
-        #print(convolution.shape)
+        #print(f'Before: {convolution.shape}')
+        #print(self.bias.shape)
+        # TODO: Get rid of for loop
+        for batch in range(batch_size):
+            for k in range(self.num_kernels):
+                convolution[batch][k] += self.bias[k]
+        #print(f'After: {convolution.shape}')
 
         return convolution
 
@@ -270,9 +275,9 @@ class ConvolutionalLayer(Layer):
         width = self.inputs.shape[2]
         height = self.inputs.shape[3]
 
-        #dE_dW = np.zeros(self.weights.shape)
+        # Weight and bias gradients
         dE_dW = np.zeros((batch_size, *self.weights.shape))
-        #print(dE_dW.shape)
+        dE_dB = np.zeros((batch_size, self.num_kernels))
 
         # Think of it as weights pointing from filter to inputs
         # Filter moves = pointing to new inputs
@@ -284,50 +289,31 @@ class ConvolutionalLayer(Layer):
                     input_section = self.inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
                     # Each index (x,y) in dE_dY contains error for the section that produced the value at that index
                     for k in range(self.num_kernels):
-                        #print(input_section.shape)
-                        #print(dE_dY[batch][k][w][h].shape)
                         dE_dW[batch][k] += dE_dY[batch][k][w][h] * input_section
+                        dE_dB[batch][k] += dE_dY[batch][k][w][h]
 
         # Sum and store weight gradient for each sample in batch
         # During update divide by batch size for avg deriv
         self.grad_weights += np.sum(dE_dW, axis=0)
-        #self.grad_bias += np.sum(dE_dB, axis=0)
+        self.grad_bias += np.sum(dE_dB, axis=0)
 
-        '''dE_dk = np.zeros(self.kernels.shape)
-        for patch, h, w in self.patches_generator(self.image):
-            for f in range(self.kernel_num):
-                dE_dk[f] += patch * dE_dY[h, w, f]
-        # Update the parameters
-        self.kernels -= alpha * dE_dk
-        return dE_dk'''
-
+        # TODO: THIS IS WRONG.
+        #  Need to pass along dE_dX, the change in error with respect to the inputs(prev layer outputs)
         return dE_dW
 
     def update(self, lr):
         # Average summed weight gradients by dividing by number of samples in batch
         self.grad_weights /= self.num_samples_used
-        #self.grad_bias /= self.num_samples_used
+        self.grad_bias /= self.num_samples_used
 
         # Update via gradient descent
         self.weights  = self.weights - (lr * self.grad_weights)
-        #self.bias = self.bias - (lr * self.grad_bias)
+        self.bias = self.bias - (lr * self.grad_bias)
 
         # Reset gradient sums, batch size count for next batch
         self.grad_weights = np.zeros(self.weights.shape)
         self.grad_bias = np.zeros(self.bias.shape)
         self.num_samples_used = 0
-
-'''
-# Extract image height and width
-image_h, image_w = image.shape
-# Initialize the convolution output volume of the correct size
-convolution_output = np.zeros((image_h - self.kernel_size + 1, image_w - self.kernel_size + 1, self.kernel_num))
-# Unpack the generator
-for patch, h, w in self.patches_generator(image):
-    # Perform convolution for each patch
-    convolution_output[h, w] = np.sum(patch * self.kernels, axis=(1, 2))
-return convolution_output
-'''
 
 
 class FlattenLayer(Layer):
