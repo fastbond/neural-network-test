@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from layers import Layer
+import time
 
 # Currently only implements a linear network structure
 # input_shape does not include batch size
@@ -36,8 +37,10 @@ class NeuralNetwork():
                 Y_batch = Y[batch_size * i: batch_size * (i + 1)]
 
                 output = X_batch
+                t = time.time()
                 for layer in self.layers:
                     output = layer.forward_prop(output)
+                print(f'Forward time: {time.time()-t}')
 
                 Y_batch = Y_batch.reshape(output.shape)
 
@@ -49,8 +52,10 @@ class NeuralNetwork():
                 error += self.loss_func(output, Y_batch) * X_batch.shape[0]
 
                 error_gradient = self.loss_deriv(output, Y_batch)
+                t = time.time()
                 for layer in reversed(self.layers):
                     error_gradient = layer.backprop(error_gradient)
+                print(f'Backprop time: {time.time() - t}')
 
                 # Update using the computed weight gradients
                 for layer in self.layers:
