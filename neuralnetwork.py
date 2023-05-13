@@ -27,8 +27,6 @@ class NeuralNetwork():
             batch_size = num_samples
         num_batches = math.ceil(num_samples / batch_size)
 
-        # Return final output forward prop
-        output = None
         # NOTE: this method is quick and dirty and will only work for a linear network
         for epoch in range(epochs):
             error = 0
@@ -68,7 +66,6 @@ class NeuralNetwork():
 
             print("Epoch {:d}: {:f}".format(epoch, error))
 
-        return output
 
     def predict(self, X):
         print(X.shape)

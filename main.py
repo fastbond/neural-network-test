@@ -119,11 +119,12 @@ def test_CNN():
     model.set_loss_function(mse, mse_d)
 
     t = time.time()
-    train_preds = model.train(x_train[:n_train], y_train[:n_train], 0.3, epochs=100, batch_size=1)
+    model.train(x_train[:n_train], y_train[:n_train], 0.3, epochs=100, batch_size=1)
     print(f'Train duration: {time.time() - t}')
 
     np.set_printoptions(precision=2)
 
+    train_preds = model.predict(x_train[n_train])
     train_accuracy = sum((np.argmax(train_preds[i]) == np.argmax(y_train[i]) for i in range(len(train_preds)))) / len(train_preds)
     print(f'Train Accuracy: {train_accuracy}')
 
