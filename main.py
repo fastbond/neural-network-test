@@ -103,11 +103,15 @@ def test_CNN():
     y_train = np_utils.to_categorical(y_train)
     y_test = np_utils.to_categorical(y_test)
 
-    n_train = 1000
+    n_train = 10
 
     input_shape = x_train.shape[1:]
     model = NeuralNetwork(input_shape)
     model.add_layer(ConvolutionalLayer(num_kernels=4, kernel_size=3, strides=1))
+    model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
+    model.add_layer(ConvolutionalLayer(num_kernels=4, kernel_size=2, strides=1))
+    model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
+    model.add_layer(ConvolutionalLayer(num_kernels=2, kernel_size=3, strides=1))
     model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
     model.add_layer(FlattenLayer())
     model.add_layer(FullyConnectedLayer(10))
@@ -115,14 +119,14 @@ def test_CNN():
     model.set_loss_function(mse, mse_d)
 
     t = time.time()
-    model.train(x_train[:n_train], y_train[:n_train], 0.3, 2, batch_size=1)
+    model.train(x_train[:n_train], y_train[:n_train], 0.3, epochs=200, batch_size=1)
     print(f'Train duration: {time.time() - t}')
 
     np.set_printoptions(precision=2)
-    n_y = 10
-    predicts = model.predict(x_test[:n_y])
-    for i in range(n_y):
-        print("Predict={:d}  True={:d}".format(np.argmax(predicts[i]), np.argmax(y_test[i])))
+    #n_y = 10
+    #predicts = model.predict(x_test[:n_y])
+    #for i in range(n_y):
+    #    print("Predict={:d}  True={:d}".format(np.argmax(predicts[i]), np.argmax(y_test[i])))
 
     t = time.time()
     predicts = model.predict(x_test)

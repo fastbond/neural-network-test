@@ -252,13 +252,13 @@ class ConvolutionalLayer(Layer):
         return convolution
 
     # Error aka dE_dY
-    # (batch_size, width', height', num_filters)
+    # (batch_size, num_filters, width', height')
     def backprop(self, dE_dY):
         #print(dE_dY.shape)
         #print("backprop")
         batch_size = self.inputs.shape[0]
         kernels = self.num_kernels  # also output channels/feature maps
-        channels = self.inputs.shape[1]
+        input_channels = self.inputs.shape[1]
         width = self.inputs.shape[2]
         height = self.inputs.shape[3]
 
@@ -275,6 +275,7 @@ class ConvolutionalLayer(Layer):
                 for w in range(width - self.kernel_size + 1):
                     input_section = self.inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
                     # Each index (x,y) in dE_dY contains error for the section that produced the value at that index
+                    # dE_dY[batch][k][w][h] is a scalar(or at least a single value array which can be broadcasted)
                     for k in range(self.num_kernels):
                         dE_dW[batch][k] += dE_dY[batch][k][w][h] * input_section
                         dE_dB[batch][k] += dE_dY[batch][k][w][h]
@@ -284,9 +285,50 @@ class ConvolutionalLayer(Layer):
         self.grad_weights += np.sum(dE_dW, axis=0)
         self.grad_bias += np.sum(dE_dB, axis=0)
 
-        # TODO: THIS IS WRONG.
-        #  Need to pass along dE_dX, the change in error with respect to the inputs(prev layer outputs)
-        return dE_dW
+        # Pass along error gradient(dE_dX)
+        # https://becominghuman.ai/back-propagation-in-convolutional-neural-networks-intuition-and-code-714ef1c38199
+        # Y(output) of previous layer is this layer's X(input)
+        #   dE/dxj = dE/dyi * dyi/dxj               = dE/dyi * wij
+        # dE_dY[batch][k][x][y] is a scalar
+        # self.weights[k][c][kw][kh]
+        # dE_dX is shape (batch, c, w, h)
+        # dX[h:h+f, w:w+f] += W * dH(h,w)
+        dE_dX = np.zeros((batch_size, input_channels, width, height))
+        # weights of shape (self.output_kernels, input_channels, self.kernel_size, self.kernel_size))
+        # slices ==   w: w + self.kernel_size, h: h + self.kernel_size]
+        # Each index (x,y) in dE_dY contains error for the section that produced the value at that index
+        # dE_dY[batch][k][w][h] is a scalar(or at least a single value array which can be broadcasted)
+        # for k in range(self.num_kernels):
+
+        # weights get re-used, so have to determine where weights were applied
+        # dE/dY              (batch_size, output_kernels, output_width, output_height)
+        # weights            (output_kernels, input_channels, kernel_size, kernel_size)
+        # weightsT           (input_channels, output_kernels, kernel_size, kernel_size)
+        # dE/dxj maybe shape (batch_size, input_channels, width, height)?????????????
+        # get width x height values using f(kernel_size, output_width, output_height)
+        # w,h is on output width and height
+        # each w,h corresponds to (w: w + self.kernel_size, h: h + self.kernel_size)
+        # with stride == 1, top left corner index of input conv matches output index?
+        # TODO: Efficiency
+        #   Trying to overfit a tiny training size with multiple layers for testing
+        #   Seems to work.  Higher epochs w/ 3 layers results in overfitting(0.000008 loss with 40% accuracy)
+        #
+        for batch in range(batch_size):
+            for h in range(height - self.kernel_size + 1):
+                for w in range(width - self.kernel_size + 1):
+                    for k in range(self.num_kernels):
+                        dy = dE_dY[batch][k][w][h]
+                        for input_w in range(w, w+self.kernel_size):
+                            for input_h in range(h, h+self.kernel_size):
+                                for c in range(input_channels):
+                                    dE_dX[batch][c][input_w][input_h] += dy * self.weights[k][c][input_w-w][input_h-h]
+
+        # Each input w,h contributes to (possibly) multiple outputs (less for ones near edge)
+        # aka what are all the weights coming from each input?
+        # Sum the results of (output error for each output contributed to times the weight to that output)
+
+
+        return dE_dX
 
     def update(self, lr):
         # Average summed weight gradients by dividing by number of samples in batch
