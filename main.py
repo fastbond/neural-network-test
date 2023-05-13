@@ -126,7 +126,7 @@ def test_CNN():
 
     train_preds = model.predict(x_train[:n_train])
     train_accuracy = sum((np.argmax(train_preds[i]) == np.argmax(y_train[i]) for i in range(len(train_preds)))) / len(train_preds)
-    print(f'Train Accuracy: {train_accuracy}')
+    print(f'Train Accuracy: {train_accuracy * 100}')
 
     #n_y = 10
     #predicts = model.predict(x_test[:n_y])
@@ -136,7 +136,7 @@ def test_CNN():
     t = time.time()
     predicts = model.predict(x_test)
     accuracy = sum((np.argmax(predicts[i]) == np.argmax(y_test[i]) for i in range(len(predicts)))) / len(predicts)
-    print(f'Accuracy: {accuracy}')
+    print(f'Accuracy: {accuracy * 100}')
     print(f'Predict duration: {time.time() - t}')
 
 
