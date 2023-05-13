@@ -316,12 +316,29 @@ class ConvolutionalLayer(Layer):
         for batch in range(batch_size):
             for h in range(height - self.kernel_size + 1):
                 for w in range(width - self.kernel_size + 1):
-                    for k in range(self.num_kernels):
-                        dy = dE_dY[batch][k][w][h]
-                        for input_w in range(w, w+self.kernel_size):
-                            for input_h in range(h, h+self.kernel_size):
-                                for c in range(input_channels):
-                                    dE_dX[batch][c][input_w][input_h] += dy * self.weights[k][c][input_w-w][input_h-h]
+                    #dyT = np.transpose(dE_dY, axes=(0,2,3,1))        # (batches, outw, outh, kernels)
+                    #print("Shapes")
+                    #print(dE_dY.shape)
+                    dy = dE_dY[batch,:,w,h]
+                    #print(dy.shape)
+                    wT = np.transpose(self.weights, axes=(1,2,3,0))  # (channels, ksize, ksize, kernels)
+                    #print(wT.shape)
+                    product = dy * wT
+                    product = np.sum(product, axis=(-1))
+                    #print(product.shape)
+                    #print(dE_dX[batch, :, w:w + self.kernel_size, h:h + self.kernel_size].shape)
+                    dE_dX[batch, :, w:w + self.kernel_size, h:h + self.kernel_size] += product
+                    #for k in range(self.num_kernels):
+                    #    dy = dE_dY[batch][k][w][h]
+                        # Unsure if this works since only testing one channel atm
+                        # also if actually asssigning right sums etc
+                        # WRONG BECAUSE summing for all k but multiplying for single k and adding for each k
+                        # move k to last axis for dyT, weightsT, dont sum
+                        # multiply dyT * weightsT
+
+                        #for c in range(input_channels):
+                            #dE_dX[batch,c,w:w + self.kernel_size,h:h + self.kernel_size] += dy * np.sum(self.weights[k][c][:self.kernel_size][:self.kernel_size], axis=(0))
+
 
         # Each input w,h contributes to (possibly) multiple outputs (less for ones near edge)
         # aka what are all the weights coming from each input?
