@@ -107,7 +107,7 @@ def test_CNN():
 
     input_shape = x_train.shape[1:]
     model = NeuralNetwork(input_shape)
-    model.add_layer(ConvolutionalLayer(num_kernels=4, kernel_size=3, strides=1))
+    model.add_layer(ConvolutionalLayer(num_kernels=3, kernel_size=3, strides=1))
     model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
     model.add_layer(ConvolutionalLayer(num_kernels=4, kernel_size=2, strides=1))
     model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
@@ -119,10 +119,14 @@ def test_CNN():
     model.set_loss_function(mse, mse_d)
 
     t = time.time()
-    model.train(x_train[:n_train], y_train[:n_train], 0.3, epochs=200, batch_size=1)
+    train_preds = model.train(x_train[:n_train], y_train[:n_train], 0.3, epochs=100, batch_size=1)
     print(f'Train duration: {time.time() - t}')
 
     np.set_printoptions(precision=2)
+
+    train_accuracy = sum((np.argmax(train_preds[i]) == np.argmax(y_train[i]) for i in range(len(train_preds)))) / len(train_preds)
+    print(f'Train Accuracy: {train_accuracy}')
+
     #n_y = 10
     #predicts = model.predict(x_test[:n_y])
     #for i in range(n_y):
