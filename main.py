@@ -124,7 +124,7 @@ def test_CNN():
 
     np.set_printoptions(precision=2)
 
-    train_preds = model.predict(x_train[n_train])
+    train_preds = model.predict(x_train[:n_train])
     train_accuracy = sum((np.argmax(train_preds[i]) == np.argmax(y_train[i]) for i in range(len(train_preds)))) / len(train_preds)
     print(f'Train Accuracy: {train_accuracy}')
 
