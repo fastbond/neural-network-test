@@ -7,6 +7,7 @@ class MaxPooling(Layer):
         self.filter_size = filter_size
         self.channels_first = channels_first
         self.outputs = None
+        self.inputs = None
 
     def build(self, input_shape=None, output_shape=None):
         self.input_shape = input_shape
@@ -29,18 +30,34 @@ class MaxPooling(Layer):
                 #print(outputs[:, :, w, h].shape)
 
         # Store to check which produced max during backprop
+        self.inputs = inputs
         self.outputs = outputs
 
         return outputs
 
+    # (batch_size, channels, output_width, output_height)
     def backprop(self, dE_dY):
-        # (batch, input_shape)
         batch_size = dE_dY.shape[0]
-
+        channels = dE_dY.shape[1]
+        output_width = dE_dY.shape[2]
+        output_height = dE_dY.shape[3]
+        input_width = self.input_shape[-2]
+        input_height = self.input_shape[-1]
 
         dE_dX = np.zeros((batch_size, *self.input_shape))
 
-
+        # TODO: This is very very slow
+        # All dE_dx are 0 except those which contributed to maximum in outputs
+        # A single input x can contribute to multiple outputs(covered by multiple filters)
+        for batch in range(batch_size):
+            for c in range(channels):
+                for h in range(output_height - self.filter_size + 1):
+                    for w in range(output_width - self.filter_size + 1):
+                        section_max = self.outputs[batch][c][w][h]
+                        for kw in range(self.filter_size):
+                            for kh in range(self.filter_size):
+                                if self.inputs[batch][c][w+kw][h+kh] == section_max:
+                                    dE_dX[batch][c][w+kw][h+kh] += dE_dY[batch][c][w][h]
 
         return dE_dX
 
