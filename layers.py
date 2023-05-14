@@ -232,33 +232,34 @@ class ConvolutionalLayer(Layer):
         # "A view is returned whenever possible" - I'm just assuming it always will return a view in this case
         #  I can't figure out when transpose won't return a view
         convolutionT = np.transpose(convolution, axes=(0,-2,-1,1))
-        for h in range(height - self.kernel_size + 1):
-            for w in range(width - self.kernel_size + 1):
-                input_section = inputs[:, :, w: w + self.kernel_size, h: h + self.kernel_size]
-                # (B, c, x, y) * (k, c, x, y)
-                # Add dimension for broadcasting to get final result of (B, k, c, x, y)
-                input_section = np.expand_dims(input_section, 1)
-                products = input_section * self.weights  # * for element-wise multiplication
-                sums = np.sum(products, axis=(2, 3, 4))
-                convolutionT[:, w, h] = sums
-
-        '''
-        # This method is faster for batch=1
-        for batch in range(batch_size):
+        # Use this method for vectorization for larger batches
+        # Set for any batch size > 1 for now
+        if batch_size > 1:
             for h in range(height - self.kernel_size + 1):
                 for w in range(width - self.kernel_size + 1):
-                    input_section = inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
-                    # (c, x, y) * (k, c, x, y)
+                    input_section = inputs[:, :, w: w + self.kernel_size, h: h + self.kernel_size]
+                    # (B, c, x, y) * (k, c, x, y)
+                    # Add dimension for broadcasting to get final result of (B, k, c, x, y)
+                    input_section = np.expand_dims(input_section, 1)
                     products = input_section * self.weights  # * for element-wise multiplication
-                    sums = np.sum(products, axis=(1, 2, 3))
-                    convolutionT[batch, w, h] = sums
-        '''
+                    sums = np.sum(products, axis=(2, 3, 4))
+                    convolutionT[:, w, h] = sums
+        else:
+            # This method is faster for batch=1
+            for batch in range(batch_size):
+                for h in range(height - self.kernel_size + 1):
+                    for w in range(width - self.kernel_size + 1):
+                        input_section = inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
+                        # (c, x, y) * (k, c, x, y)
+                        products = input_section * self.weights  # * for element-wise multiplication
+                        sums = np.sum(products, axis=(1, 2, 3))
+                        convolutionT[batch, w, h] = sums
 
         # Using transpose to get a view to add all filter biases in a single operation using broadcasting
         cT = np.moveaxis(convolution, 1, -1)
         cT += self.bias
         '''
-        # Old method. Maybe faster?
+        # Old method. Maybe faster for small batches?
         for batch in range(batch_size):
             cT = convolution[batch].T
             cT += self.bias
@@ -288,31 +289,32 @@ class ConvolutionalLayer(Layer):
         # SUM the error for the current output error value in dE/dY matrix for all input sections contributing to it
         #   nevermind this makes no sense, sum for channels...?
         #for batch in range(batch_size):
-        for h in range(height - self.kernel_size + 1):
-            for w in range(width - self.kernel_size + 1):
-                input_section = self.inputs[:, :, w: w+self.kernel_size, h: h+self.kernel_size]
-                # Each index (x,y) in dE_dY contains error for the section that produced the value at that index
-                # dE_dY[batch][k][w][h] is a scalar(or at least a single value array which can be broadcasted)
-                for k in range(self.num_kernels):
-                    # Reshape arrays for broadcasting
-                    dyT = np.transpose(dE_dY, (1,2,3,0))
-                    dxT = np.transpose(input_section, (1,2,3,0))
-                    prod = dyT[k, w, h, :] * dxT
-                    prod = np.moveaxis( prod , -1, 0)
-                    dE_dW[:, k] += prod
-                    dE_dB[:, k] += dE_dY[:, k, w, h]
-        '''    
-        # This was faster for batch=1    
-        for batch in range(batch_size):
+        # Use vectorized method for larger batches
+        if batch_size > 1:
             for h in range(height - self.kernel_size + 1):
                 for w in range(width - self.kernel_size + 1):
-                    input_section = self.inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
+                    input_section = self.inputs[:, :, w: w+self.kernel_size, h: h+self.kernel_size]
                     # Each index (x,y) in dE_dY contains error for the section that produced the value at that index
                     # dE_dY[batch][k][w][h] is a scalar(or at least a single value array which can be broadcasted)
                     for k in range(self.num_kernels):
-                        dE_dW[batch][k] += dE_dY[batch][k][w][h] * input_section
-                        dE_dB[batch][k] += dE_dY[batch][k][w][h]
-        '''
+                        # Reshape arrays for broadcasting
+                        dyT = np.transpose(dE_dY, (1,2,3,0))
+                        dxT = np.transpose(input_section, (1,2,3,0))
+                        prod = dyT[k, w, h, :] * dxT
+                        prod = np.moveaxis( prod , -1, 0)
+                        dE_dW[:, k] += prod
+                        dE_dB[:, k] += dE_dY[:, k, w, h]
+        else:
+            # This was faster for batch=1
+            for batch in range(batch_size):
+                for h in range(height - self.kernel_size + 1):
+                    for w in range(width - self.kernel_size + 1):
+                        input_section = self.inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
+                        # Each index (x,y) in dE_dY contains error for the section that produced the value at that index
+                        # dE_dY[batch][k][w][h] is a scalar(or at least a single value array which can be broadcasted)
+                        for k in range(self.num_kernels):
+                            dE_dW[batch][k] += dE_dY[batch][k][w][h] * input_section
+                            dE_dB[batch][k] += dE_dY[batch][k][w][h]
 
         # Sum and store weight gradient for each sample in batch
         # During update divide by batch size for avg deriv
