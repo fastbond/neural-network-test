@@ -121,7 +121,7 @@ def test_CNN():
     model.set_loss_function(mse, mse_d)
 
     t = time.time()
-    model.train(x_train[:n_train], y_train[:n_train], 0.3*3, epochs=30, batch_size=1)
+    model.train(x_train[:n_train], y_train[:n_train], 0.3*3, epochs=30, batch_size=8)
     print(f'Train duration: {time.time() - t}')
 
     np.set_printoptions(precision=2)

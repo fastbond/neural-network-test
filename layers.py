@@ -54,7 +54,7 @@ class FullyConnectedLayer(Layer):
         min_w = self.weight_range[0]
         max_w = self.weight_range[1]
         input_neurons = np.prod(self.input_shape)
-        np.random.seed(seed=0)
+        #np.random.seed(seed=0)
         self.weights = np.random.uniform(min_w, max_w, (input_neurons, self.neurons))
         self.bias = np.zeros((1, self.neurons))
         # Matrices for summed weight gradients during backprop
@@ -195,7 +195,7 @@ class ConvolutionalLayer(Layer):
         # https://stanford.edu/~shervine/teaching/cs-230/cheatsheet-convolutional-neural-networks
         input_channels = self.input_shape[0]
         #self.weights = np.random.uniform(-0.5, 0.5, (self.num_kernels, self.kernel_size, self.kernel_size))
-        np.random.seed(seed=0)
+        #np.random.seed(seed=0)
         self.weights = np.random.uniform(-0.5, 0.5, (self.num_kernels, input_channels, self.kernel_size, self.kernel_size))
 
         # Every filter has one bias? Or it it one per filter per channel?
@@ -227,12 +227,23 @@ class ConvolutionalLayer(Layer):
         self.inputs = inputs
         self.num_samples_used += batch_size
 
-        # TODO: Process all batches at once
         # w and h will be indices in output matrix/feature map
         # Using transpose to get a view with different ordering to process all filters and channels at once
         # "A view is returned whenever possible" - I'm just assuming it always will return a view in this case
         #  I can't figure out when transpose won't return a view
         convolutionT = np.transpose(convolution, axes=(0,-2,-1,1))
+        for h in range(height - self.kernel_size + 1):
+            for w in range(width - self.kernel_size + 1):
+                input_section = inputs[:, :, w: w + self.kernel_size, h: h + self.kernel_size]
+                # (B, c, x, y) * (k, c, x, y)
+                # Add dimension for broadcasting to get final result of (B, k, c, x, y)
+                input_section = np.expand_dims(input_section, 1)
+                products = input_section * self.weights  # * for element-wise multiplication
+                sums = np.sum(products, axis=(2, 3, 4))
+                convolutionT[:, w, h] = sums
+
+        '''
+        # This method is faster for batch=1
         for batch in range(batch_size):
             for h in range(height - self.kernel_size + 1):
                 for w in range(width - self.kernel_size + 1):
@@ -241,14 +252,18 @@ class ConvolutionalLayer(Layer):
                     products = input_section * self.weights  # * for element-wise multiplication
                     sums = np.sum(products, axis=(1, 2, 3))
                     convolutionT[batch, w, h] = sums
+        '''
 
-        # TODO: Get rid of for loops
         # Using transpose to get a view to add all filter biases in a single operation using broadcasting
+        cT = np.moveaxis(convolution, 1, -1)
+        cT += self.bias
+        '''
+        # Old method. Maybe faster?
         for batch in range(batch_size):
-            #for k in range(self.num_kernels):
-            #    convolution[batch][k] += self.bias[k]
             cT = convolution[batch].T
             cT += self.bias
+        '''
+
         #print(f'After: {convolution.shape}')
 
         return convolution
@@ -286,6 +301,18 @@ class ConvolutionalLayer(Layer):
                     prod = np.moveaxis( prod , -1, 0)
                     dE_dW[:, k] += prod
                     dE_dB[:, k] += dE_dY[:, k, w, h]
+        '''    
+        # This was faster for batch=1    
+        for batch in range(batch_size):
+            for h in range(height - self.kernel_size + 1):
+                for w in range(width - self.kernel_size + 1):
+                    input_section = self.inputs[batch, :, w: w+self.kernel_size, h: h+self.kernel_size]
+                    # Each index (x,y) in dE_dY contains error for the section that produced the value at that index
+                    # dE_dY[batch][k][w][h] is a scalar(or at least a single value array which can be broadcasted)
+                    for k in range(self.num_kernels):
+                        dE_dW[batch][k] += dE_dY[batch][k][w][h] * input_section
+                        dE_dB[batch][k] += dE_dY[batch][k][w][h]
+        '''
 
         # Sum and store weight gradient for each sample in batch
         # During update divide by batch size for avg deriv
@@ -327,14 +354,7 @@ class ConvolutionalLayer(Layer):
                     wT = np.transpose(self.weights, axes=(1,2,3,0))  # makes (channels, ksize, ksize, kernels)
                     product = dy * wT
                     product = np.sum(product, axis=(-1))             # sum over kernels axis
-                    #print("Shapes")
-                    #print(dy.shape)
-                    #print(wT.shape)
-                    #print(product.shape)
                     dE_dX[batch, :, w:w + self.kernel_size, h:h + self.kernel_size] += product
-                    #for k in range(self.num_kernels):
-                        #for c in range(input_channels):
-                            #dE_dX[batch,c,w:w + self.kernel_size,h:h + self.kernel_size] += dy * np.sum(self.weights[k][c][:self.kernel_size][:self.kernel_size], axis=(0))
 
 
         # Each input w,h contributes to (possibly) multiple outputs (less for ones near edge)

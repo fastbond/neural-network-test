@@ -33,6 +33,7 @@ class NeuralNetwork():
 
             # Should probably shuffle batches(or samples?)...
             for i in range(0, num_batches, 1):
+                #print("Batch " + str(i+1))
                 X_batch = X[batch_size * i: batch_size * (i + 1)]
                 Y_batch = Y[batch_size * i: batch_size * (i + 1)]
 
@@ -50,6 +51,8 @@ class NeuralNetwork():
                 # Multiply by number of samples in batch, then later divide by total number of samples
                 # This accounts for variable batch size
                 error += self.loss_func(output, Y_batch) * X_batch.shape[0]
+
+                #print(f'Error: {error}')
 
                 error_gradient = self.loss_deriv(output, Y_batch)
                 t = time.time()
