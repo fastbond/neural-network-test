@@ -3,6 +3,7 @@ from neuralnetwork import NeuralNetwork
 from layers import *
 from activations import *
 from lossfuncs import *
+from pooling import MaxPooling
 
 import time
 
@@ -109,10 +110,11 @@ def test_CNN():
     model = NeuralNetwork(input_shape)
     model.add_layer(ConvolutionalLayer(num_kernels=3, kernel_size=3, strides=1))
     model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
-    model.add_layer(ConvolutionalLayer(num_kernels=4, kernel_size=2, strides=1))
-    model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
-    model.add_layer(ConvolutionalLayer(num_kernels=2, kernel_size=3, strides=1))
-    model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
+    model.add_layer(MaxPooling(filter_size=2))
+    #model.add_layer(ConvolutionalLayer(num_kernels=4, kernel_size=2, strides=1))
+    #model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
+    #model.add_layer(ConvolutionalLayer(num_kernels=2, kernel_size=3, strides=1))
+    #model.add_layer(ActivationLayer(sigmoid, sigmoid_d))
     model.add_layer(FlattenLayer())
     model.add_layer(FullyConnectedLayer(10))
     model.add_layer(ActivationLayer(sigmoid, sigmoid_d))

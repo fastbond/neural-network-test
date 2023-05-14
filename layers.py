@@ -358,10 +358,10 @@ class FlattenLayer(Layer):
 
     def build(self, input_shape=None, output_shape=None):
         self.input_shape = input_shape
-        print(f'Flatten input shape: {self.input_shape}')
+        #print(f'Flatten input shape: {self.input_shape}')
         #self.output_shape = (input_shape[0], 1, np.prod(self.input_shape[1:]))
         self.output_shape = (1, np.prod(self.input_shape[:]))
-        print(f'Flatten output shape: {self.output_shape}')
+        #print(f'Flatten output shape: {self.output_shape}')
 
     def forward_prop(self, inputs):
         # (batch, output_shape)
