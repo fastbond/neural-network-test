@@ -316,10 +316,10 @@ class ConvolutionalLayer(Layer):
         for batch in range(batch_size):
             for h in range(height - self.kernel_size + 1):
                 for w in range(width - self.kernel_size + 1):
-                    dy = dE_dY[batch,:,w,h]
-                    wT = np.transpose(self.weights, axes=(1,2,3,0))  # (channels, ksize, ksize, kernels)
+                    dy = dE_dY[batch,:,w,h]                          # (kernels,)
+                    wT = np.transpose(self.weights, axes=(1,2,3,0))  # makes (channels, ksize, ksize, kernels)
                     product = dy * wT
-                    product = np.sum(product, axis=(-1))
+                    product = np.sum(product, axis=(-1))             # sum over kernels axis
                     #print("Shapes")
                     #print(dy.shape)
                     #print(wT.shape)

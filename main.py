@@ -103,7 +103,7 @@ def test_CNN():
     y_train = np_utils.to_categorical(y_train)
     y_test = np_utils.to_categorical(y_test)
 
-    n_train = 10
+    n_train = 1000
 
     input_shape = x_train.shape[1:]
     model = NeuralNetwork(input_shape)
@@ -119,7 +119,7 @@ def test_CNN():
     model.set_loss_function(mse, mse_d)
 
     t = time.time()
-    model.train(x_train[:n_train], y_train[:n_train], 0.3, epochs=100, batch_size=1)
+    model.train(x_train[:n_train], y_train[:n_train], 0.3*3, epochs=30, batch_size=1)
     print(f'Train duration: {time.time() - t}')
 
     np.set_printoptions(precision=2)
